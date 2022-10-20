@@ -6,16 +6,14 @@ Snapchat web snapscore bot.
 
 
 import undetected_chromedriver as uc
-# undetectable chromedriver import in run folder
-
 from selenium.webdriver.common.by import By
 from time import time, sleep
 from random import random
-# manages additional imports
+# manages imports
 
 
-MY_USERNAME = "EMAIL@gmail.com"
-MY_PASSWORD = "PASSWORD123*"
+MY_USERNAME = "EXAMPLE@gmail.com"
+MY_PASSWORD = "PASSWORD123"
 # username and password
 
 SLEEP_TIME = 1
@@ -33,7 +31,7 @@ MIN_MULT = 0.05
 MIN_ADD = 0
 # minimum value to add to random sleep times
 
-CHAT_SELECTIONS = 170
+CHAT_SELECTIONS = 100
 # maximum value of chat selection (will select chats from index 1 to CHAT_SELECTIONS value)
 # snaps will be sent to the FIRST "n" groups/people based on Snapchat's default (based on previoud send activity)
 # if CHAT_SELECTIONS = N, then N snaps will be sent per "batch"
@@ -54,6 +52,7 @@ CAMERA = '//*[@id="root"]/div[1]/div[2]/div/div/div/div/div[1]/div/div/div/div/d
 SEND_1 = '//*[@id="root"]/div[1]/div[2]/div/div/div/div/div[1]/div/div/div/div/div/button[2]'
 SEND_2 = '//*[@id="root"]/div[1]/div[2]/div/div/div/div/div[1]/div/div/div/div/div[1]/form/div[4]/button'
 RESTART_CAM = '//*[@id="root"]/div[1]/div[2]/div/div/div/div/div[1]/div/div/div/div/div/button'
+TEST_OPEN = '//*[@id="root"]/div[1]/div[1]/div[1]/div[3]/button'
 # element XPATH data
 # selection XPATH data stored and handled in "send_pic" function
 
@@ -81,7 +80,7 @@ def init():
     :rtype: webdriver
     """
 
-    driver = uc.Chrome()
+    driver = uc.Chrome(use_subprocess=True)
     driver.get("http://web.snapchat.com/")
     
     input("Wait for site to load (login button MUST be yellow), then press enter to continue...")
@@ -182,6 +181,7 @@ def send_pic(driver):
             # changes based on selection, so not included as global variable
             
             select_elem.click()
+
             selected_count += 1
             print(f"[ select ({x}/{CHAT_SELECTIONS}) click SUCCESS ]")
             
@@ -241,27 +241,24 @@ def send_pic(driver):
     
     if batch_num == 1:  # extra sleep after first send
         sleep(FIRST_SEND_SLEEP)
-        
-        try:
-            start_cam = driver.find_element(By.XPATH, RESTART_CAM)
-            start_cam.click()
-            # attempts to click "cam restart" button
-            
-        except:
-            pass
     
-    if driver.title != "Snapchat":  # refreshes if page data is incorrect
+    try:
+        driver.find_element(By.XPATH, TEST_OPEN)
+        # this data should always be present on page
+        
+    except:
         driver.refresh()
         sleep(5)
-        # somewhat trivial sleep value
+        # refresh if page error
+        # some sleep value (can change based on user preference)
         
-        try:
-            start_cam = driver.find_element(By.XPATH, RESTART_CAM)
-            start_cam.click()
-            # attempts to click "cam restart" button
-            
-        except:
-            pass
+    try:
+        start_cam = driver.find_element(By.XPATH, RESTART_CAM)
+        start_cam.click()
+        # attempts to click "cam restart" button if needed
+        
+    except:
+        pass
             
     batch_num += 1
 
