@@ -14,8 +14,8 @@ from random import random
 # manages additional imports
 
 
-MY_USERNAME = "EXAMPLE@gmail.com"
-MY_PASSWORD = "PASSWORD123"
+MY_USERNAME = "EMAIL@gmail.com"
+MY_PASSWORD = "PASSWORD123*"
 # username and password
 
 SLEEP_TIME = 1
@@ -33,14 +33,17 @@ MIN_MULT = 0.05
 MIN_ADD = 0
 # minimum value to add to random sleep times
 
-CHAT_SELECTIONS = 100
+CHAT_SELECTIONS = 170
 # maximum value of chat selection (will select chats from index 1 to CHAT_SELECTIONS value)
 # snaps will be sent to the FIRST "n" groups/people based on Snapchat's default (based on previoud send activity)
 # if CHAT_SELECTIONS = N, then N snaps will be sent per "batch"
 
-ERR_SEND_RATE_MULT = 7.5
+ERR_SEND_RATE_MULT = 20
 # estimation of number of additional "lost" snaps per failed batch
 # a previously failed batch can interfere with the next batch, and even if successful it can cause some sends to fail
+
+FIRST_SEND_SLEEP = 30
+# waits extra time after the first snap send
 
 USERNAME = '//*[@id="username"]'
 PASSWORD = '//*[@id="password"]'
@@ -50,6 +53,7 @@ LOGIN = '//*[@id="loginTrigger"]'
 CAMERA = '//*[@id="root"]/div[1]/div[2]/div/div/div/div/div[1]/div/div/div/div/div/div[2]/div/div/div[1]/button[1]'
 SEND_1 = '//*[@id="root"]/div[1]/div[2]/div/div/div/div/div[1]/div/div/div/div/div/button[2]'
 SEND_2 = '//*[@id="root"]/div[1]/div[2]/div/div/div/div/div[1]/div/div/div/div/div[1]/form/div[4]/button'
+RESTART_CAM = '//*[@id="root"]/div[1]/div[2]/div/div/div/div/div[1]/div/div/div/div/div/button'
 # element XPATH data
 # selection XPATH data stored and handled in "send_pic" function
 
@@ -130,7 +134,7 @@ def send_pic(driver):
     batch_start = time()
     # temporary local variables used
     
-    sleep(SLEEP_TIME * (random() + MIN_MULT) + 2)
+    sleep(SLEEP_TIME * (random() + MIN_MULT) + 3)
     # sleep(SLEEP_TIME * (random() + MIN_MULT) + MIN_ADD)
     # [ custom sleep time used for better results ]
     # waits before after next iteration called in main
@@ -166,7 +170,7 @@ def send_pic(driver):
         print(f"Error #{err_count}:\n----------")
         print(e)
         
-    sleep(SLEEP_TIME * (random() + MIN_MULT) + 2)
+    sleep(SLEEP_TIME * (random() + MIN_MULT) + 3)
     # sleep(SLEEP_TIME * (random() + MIN_MULT) + MIN_ADD)
     # [ custom sleep time used for better results ]
     # waits after "send" click
@@ -229,11 +233,36 @@ def send_pic(driver):
     print(f"TOTAL ERRORS: << {err_count} >>")
     print(f"\nCLEAN BATCHES: << {successful_batches} >>")
     print(f"ERRORED BATCHES: << {failed_batches} >>")
-    print(f"\nBASE RATE: << {round(send_count / (cur_time - START_TIME), 3)} snaps/second >>")
-    print(f"EST. ACTUAL RATE: << {round((send_count - failed_batches * ERR_SEND_RATE_MULT) / (cur_time - START_TIME), 3)} snaps/second >>")
+    print(f"\nBATCH RATE: << {round(selected_count / (cur_time - batch_start), 3)} snaps/second >>")
+    print(f"CUM. BASE RATE: << {round(send_count / (cur_time - START_TIME), 3)} snaps/second >>")
+    print(f"EST. CUM. ACTUAL RATE: << {round((send_count - failed_batches * ERR_SEND_RATE_MULT) / (cur_time - START_TIME), 3)} snaps/second >>")
     print("=" * 80 + "\n")
     # displays data
     
+    if batch_num == 1:  # extra sleep after first send
+        sleep(FIRST_SEND_SLEEP)
+        
+        try:
+            start_cam = driver.find_element(By.XPATH, RESTART_CAM)
+            start_cam.click()
+            # attempts to click "cam restart" button
+            
+        except:
+            pass
+    
+    if driver.title != "Snapchat":  # refreshes if page data is incorrect
+        driver.refresh()
+        sleep(5)
+        # somewhat trivial sleep value
+        
+        try:
+            start_cam = driver.find_element(By.XPATH, RESTART_CAM)
+            start_cam.click()
+            # attempts to click "cam restart" button
+            
+        except:
+            pass
+            
     batch_num += 1
 
 
