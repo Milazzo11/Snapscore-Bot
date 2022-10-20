@@ -9,13 +9,13 @@ import undetected_chromedriver as uc
 # undetectable chromedriver import in run folder
 
 from selenium.webdriver.common.by import By
-from time import sleep
+from time import time, sleep
 from random import random
 # manages additional imports
 
 
-MY_USERNAME = "USERNAME/EMAIL"
-MY_PASSWORD = "PASSWORD"
+MY_USERNAME = "EXAMPLE@gmail.com"
+MY_PASSWORD = "PASSWORD123"
 # username and password
 
 SLEEP_TIME = 1
@@ -24,14 +24,23 @@ SLEEP_TIME = 1
 LOGIN_SLEEP = 1
 # sleep time between login actions
 
-SELECT_SLEEP = 0.3
+SELECT_SLEEP = 0.01
 # sleep time for chat selection (multiplied by random numbr from 0-1 PLUS MIN_MULT)
 
 MIN_MULT = 0.05
 # minimum value to add to random multiplier for sleeps
 
+MIN_ADD = 0
+# minimum value to add to random sleep times
+
 CHAT_SELECTIONS = 100
 # maximum value of chat selection (will select chats from index 1 to CHAT_SELECTIONS value)
+# snaps will be sent to the FIRST "n" groups/people based on Snapchat's default (based on previoud send activity)
+# if CHAT_SELECTIONS = N, then N snaps will be sent per "batch"
+
+ERR_SEND_RATE_MULT = 7.5
+# estimation of number of additional "lost" snaps per failed batch
+# a previously failed batch can interfere with the next batch, and even if successful it can cause some sends to fail
 
 USERNAME = '//*[@id="username"]'
 PASSWORD = '//*[@id="password"]'
@@ -43,6 +52,21 @@ SEND_1 = '//*[@id="root"]/div[1]/div[2]/div/div/div/div/div[1]/div/div/div/div/d
 SEND_2 = '//*[@id="root"]/div[1]/div[2]/div/div/div/div/div[1]/div/div/div/div/div[1]/form/div[4]/button'
 # element XPATH data
 # selection XPATH data stored and handled in "send_pic" function
+
+batch_num = 1
+# batch number count
+
+err_count = 0
+# error counter
+
+successful_batches = 0
+# successful batch count
+
+failed_batches = 0
+# failed batch count
+
+send_count = 0
+# snap send counter
 
 
 def init():
@@ -93,24 +117,59 @@ def send_pic(driver):
     :param driver: current webdriver in use
     :type driver: webdriver
     """
+    
+    global batch_num
+    global err_count
+    global send_count
+    global successful_batches
+    global failed_batches
+    # global variables used
+    
+    selected_count = 0
+    batch_err = 0
+    batch_start = time()
+    # temporary local variables used
+    
+    sleep(SLEEP_TIME * (random() + MIN_MULT) + 2)
+    # sleep(SLEEP_TIME * (random() + MIN_MULT) + MIN_ADD)
+    # [ custom sleep time used for better results ]
+    # waits before after next iteration called in main
        
     try:
         camera_elem = driver.find_element(By.XPATH, CAMERA)
         camera_elem.click()
+        print("[ camera click SUCCESS ]")
+        # clicks camera
+        
     except Exception as e:
+        err_count += 1
+        batch_err += 1
+        
+        print("[ camera click FAILURE ]")
+        print(f"Error #{err_count}:\n----------")
         print(e)
         
-    sleep(SLEEP_TIME * (random() + MIN_MULT))
-    # clicks camera and waits
+    sleep(SLEEP_TIME * (random() + MIN_MULT) + MIN_ADD)
+    # waits after clicking camera
     
     try:
         send_1_elem = driver.find_element(By.XPATH, SEND_1)
         send_1_elem.click()
+        print("[ send (1/2) click SUCCESS ]")
+        # clicks "send"
+        
     except Exception as e:
+        err_count += 1
+        batch_err += 1
+        
+        print("[ send (1/2) click FAILURE ]")
+        print(f"Error #{err_count}:\n----------")
         print(e)
         
-    sleep(SLEEP_TIME * (random() + MIN_MULT))
-    # clicks "send" and waits
+    sleep(SLEEP_TIME * (random() + MIN_MULT) + 2)
+    # sleep(SLEEP_TIME * (random() + MIN_MULT) + MIN_ADD)
+    # [ custom sleep time used for better results ]
+    # waits after "send" click
     
     try:
         for x in range(1, CHAT_SELECTIONS + 1):
@@ -119,23 +178,63 @@ def send_pic(driver):
             # changes based on selection, so not included as global variable
             
             select_elem.click()
-            sleep(SELECT_SLEEP * (random() + MIN_MULT))
+            selected_count += 1
+            print(f"[ select ({x}/{CHAT_SELECTIONS}) click SUCCESS ]")
+            
+            sleep(SELECT_SLEEP * (random() + MIN_MULT) + MIN_ADD)
             # clicks select and waits
             
     except Exception as e:
+        err_count += 1
+        batch_err += 1
+        
+        print(f"[ select click FAILURE ]")
+        print(f"Error #{err_count}:\n----------")
         print(e)
         
-    sleep(SLEEP_TIME * (random() + MIN_MULT))
+    sleep(SLEEP_TIME * (random() + MIN_MULT) + MIN_ADD)
     # waits additional time after selection
     
     try:
         send_2_elem = driver.find_element(By.XPATH, SEND_2)
         send_2_elem.click()
-    except Exception as e:
-        print(e)
+        send_count += selected_count
+        print("[ send (2/2) click SUCCESS ]")
+        # clicks final send
         
-    sleep(SLEEP_TIME * (random() + MIN_MULT))
-    # clicks final send then waits before next iteration called in main
+    except Exception as e:
+        err_count += 1
+        batch_err += 1
+        
+        print("[ send (2/2) click FAILURE ]")
+        print(f"Error #{err_count}:\n----------")
+        print(e)
+    
+    if batch_err == 0:  # updates batch success/failure data
+        successful_batches += 1
+    else:
+        failed_batches += 1
+        
+    cur_time = time()
+    
+    print("\n" + "=" * 80)
+    print(f"Batch #{batch_num}:")
+    print("=" * 80)
+    print(f"BATCH COUNT: << {selected_count} snaps selected in batch >>")
+    print(f"BASE TOTAL COUNT: << {send_count} snaps sent in total >>")
+    print(f"EST. ACTUAL COUNT: << {round(send_count - failed_batches * ERR_SEND_RATE_MULT)} snaps sent in total >>")
+    print(f"\nBATCH TIME: << {round(cur_time - batch_start, 3)} seconds elapsed in batch >>")
+    print(f"TOTAL TIME: << {round(cur_time - START_TIME, 3)} seconds elapsed in total >>")
+    print(f"\nBATCH ERRORS: << {batch_err} >>")
+    print(f"TOTAL ERRORS: << {err_count} >>")
+    print(f"\nCLEAN BATCHES: << {successful_batches} >>")
+    print(f"ERRORED BATCHES: << {failed_batches} >>")
+    print(f"\nBASE RATE: << {round(send_count / (cur_time - START_TIME), 3)} snaps/second >>")
+    print(f"EST. ACTUAL RATE: << {round((send_count - failed_batches * ERR_SEND_RATE_MULT) / (cur_time - START_TIME), 3)} snaps/second >>")
+    print("=" * 80 + "\n")
+    # displays data
+    
+    batch_num += 1
 
 
 def main():
@@ -143,12 +242,16 @@ def main():
     Program entry point.
     """
     
+    global START_TIME
+    
     driver = init()
     login(driver)
     # gets driver and logs in
     
     input("Complete camera setup and press enter to start...")
     print("<< PROGRAM RUNNING >>")
+    
+    START_TIME = time()
     
     while (True):  # loops to send snaps indefinitely
         send_pic(driver)
